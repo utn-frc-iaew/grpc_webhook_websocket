@@ -1,0 +1,49 @@
+{
+  "name": "realtime-labs-ts",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Monorepo de laboratorios en tiempo real con Webhooks, gRPC y WebSockets en TypeScript",
+  "engines": {
+    "node": "^20.0.0",
+    "npm": ">=9"
+  },
+  "workspaces": [
+    "shared",
+    "webhooks",
+    "webhooks/*",
+    "grpc",
+    "grpc/*",
+    "websockets",
+    "websockets/*"
+  ],
+  "scripts": {
+    "format": "prettier --write .",
+    "lint": "eslint . --ext .ts,.tsx",
+    "typecheck": "tsc --noEmit -p tsconfig.base.json",
+    "build:all": "npm run build --workspace @realtime-labs/webhooks --workspace @realtime-labs/grpc --workspace @realtime-labs/websockets",
+    "dev:webhooks": "npm run dev --workspace @realtime-labs/webhooks",
+    "dev:grpc": "npm run dev --workspace @realtime-labs/grpc",
+    "dev:websockets": "npm run dev --workspace @realtime-labs/websockets",
+    "docker:up:webhooks": "docker compose --profile webhooks up -d",
+    "docker:up:grpc": "docker compose --profile grpc up -d",
+    "docker:up:websockets": "docker compose --profile websockets up -d",
+    "docker:down": "docker compose down",
+    "test": "npm run test --workspace @realtime-labs/webhooks --workspace @realtime-labs/grpc --workspace @realtime-labs/websockets"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.5.12",
+    "@types/node": "^20.14.2",
+    "@typescript-eslint/eslint-plugin": "^7.13.1",
+    "@typescript-eslint/parser": "^7.13.1",
+    "@vitejs/plugin-react": "^4.3.1",
+    "eslint": "^8.57.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-import": "^2.29.1",
+    "eslint-plugin-jsx-a11y": "^6.8.0",
+    "eslint-plugin-react": "^7.34.3",
+    "eslint-plugin-react-hooks": "^4.6.1",
+    "prettier": "^3.3.2",
+    "typescript": "^5.5.3",
+    "vite": "^5.2.11"
+  }
+}

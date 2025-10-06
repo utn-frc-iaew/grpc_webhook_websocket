@@ -1,0 +1,133 @@
+version: '3.9'
+
+services:
+  mongo:
+    image: mongo:7
+    container_name: realtime-labs-mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: root
+    healthcheck:
+      test: ["CMD", "mongosh", "mongodb://root:root@localhost:27017/admin?authSource=admin", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  webhooks-receiver:
+    build:
+      context: .
+      dockerfile: ./webhooks/receiver/Dockerfile
+    env_file:
+      - .env
+      - ./webhooks/receiver/.env.example
+    environment:
+      MONGO_URL: mongodb://root:root@mongo:27017/realtime_labs?authSource=admin
+      WEBHOOK_SECRET: ${WEBHOOK_SECRET}
+      WS_SERVER_URL: ${WS_SERVER_URL}
+      WS_TOKEN: ${WS_TOKEN}
+    depends_on:
+      mongo:
+        condition: service_healthy
+    ports:
+      - "3001:3001"
+    profiles:
+      - webhooks
+
+  webhooks-sender:
+    build:
+      context: .
+      dockerfile: ./webhooks/sender/Dockerfile
+    env_file:
+      - .env
+      - ./webhooks/sender/.env.example
+    environment:
+      WEBHOOK_SECRET: ${WEBHOOK_SECRET}
+      RECEIVER_URL: http://webhooks-receiver:3001/webhooks/demo
+    depends_on:
+      webhooks-receiver:
+        condition: service_started
+    ports:
+      - "3002:3002"
+    profiles:
+      - webhooks
+
+  grpc-server:
+    build:
+      context: .
+      dockerfile: ./grpc/server/Dockerfile
+    env_file:
+      - .env
+      - ./grpc/server/.env.example
+    environment:
+      MONGO_URL: mongodb://root:root@mongo:27017/realtime_labs?authSource=admin
+      JWT_SECRET: ${JWT_SECRET}
+    depends_on:
+      mongo:
+        condition: service_healthy
+    ports:
+      - "50051:50051"
+    profiles:
+      - grpc
+
+  grpc-client:
+    build:
+      context: .
+      dockerfile: ./grpc/client/Dockerfile
+    env_file:
+      - .env
+      - ./grpc/client/.env.example
+    environment:
+      GRPC_SERVER_URL: grpc-server:50051
+    depends_on:
+      grpc-server:
+        condition: service_started
+    ports:
+      - "50052:50052"
+    profiles:
+      - grpc
+
+  ws-server:
+    build:
+      context: .
+      dockerfile: ./websockets/server/Dockerfile
+    env_file:
+      - .env
+      - ./websockets/server/.env.example
+    environment:
+      MONGO_URL: mongodb://root:root@mongo:27017/realtime_labs?authSource=admin
+      WS_TOKEN: ${WS_TOKEN}
+    depends_on:
+      mongo:
+        condition: service_healthy
+    ports:
+      - "3003:3003"
+    profiles:
+      - websockets
+
+  ws-client:
+    build:
+      context: .
+      dockerfile: ./websockets/client-react/Dockerfile
+      args:
+        VITE_WS_URL: ${VITE_WS_URL}
+        VITE_WS_TOKEN: ${VITE_WS_TOKEN}
+    env_file:
+      - .env
+      - ./websockets/client-react/.env.example
+    environment:
+      VITE_WS_URL: ${VITE_WS_URL}
+      VITE_WS_TOKEN: ${WS_TOKEN}
+    depends_on:
+      ws-server:
+        condition: service_started
+    ports:
+      - "5173:80"
+    profiles:
+      - websockets
+
+volumes:
+  mongo-data:

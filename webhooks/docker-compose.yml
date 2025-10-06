@@ -1,0 +1,41 @@
+version: '3.9'
+
+services:
+  receiver:
+    build:
+      context: ..
+      dockerfile: ./webhooks/receiver/Dockerfile
+    env_file:
+      - ../.env
+      - ./receiver/.env.example
+    ports:
+      - "3001:3001"
+    depends_on:
+      mongo:
+        condition: service_healthy
+  sender:
+    build:
+      context: ..
+      dockerfile: ./webhooks/sender/Dockerfile
+    env_file:
+      - ../.env
+      - ./sender/.env.example
+    ports:
+      - "3002:3002"
+    depends_on:
+      receiver:
+        condition: service_started
+  mongo:
+    image: mongo:7
+    ports:
+      - "27017:27017"
+    volumes:
+      - webhooks-mongo:/data/db
+    healthcheck:
+      test: ["CMD", "mongo", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  webhooks-mongo:

@@ -1,0 +1,41 @@
+version: '3.9'
+
+services:
+  server:
+    build:
+      context: ..
+      dockerfile: ./websockets/server/Dockerfile
+    env_file:
+      - ../.env
+      - ./server/.env.example
+    ports:
+      - "3003:3003"
+    depends_on:
+      mongo:
+        condition: service_healthy
+  client:
+    build:
+      context: ..
+      dockerfile: ./websockets/client-react/Dockerfile
+    env_file:
+      - ../.env
+      - ./client-react/.env.example
+    ports:
+      - "5173:5173"
+    depends_on:
+      server:
+        condition: service_started
+  mongo:
+    image: mongo:7
+    ports:
+      - "27017:27017"
+    volumes:
+      - ws-mongo:/data/db
+    healthcheck:
+      test: ["CMD", "mongo", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  ws-mongo:

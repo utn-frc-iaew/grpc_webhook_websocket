@@ -1,0 +1,10 @@
+{
+  "name": "@realtime-labs/websockets",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "npm run build --workspace @realtime-labs/ws-server && npm run build --workspace @realtime-labs/ws-client-react",
+    "dev": "npm run dev --workspace @realtime-labs/ws-server",
+    "test": "npm run test --workspace @realtime-labs/ws-server"
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "esModuleInterop": true,
+    "jsx": "react-jsx",
+  "baseUrl": "./src",
+  "types": ["vite/client", "react", "react-dom"],
+    "lib": ["DOM", "DOM.Iterable", "ES2020"]
+  },
+  "include": ["src"]
+}
