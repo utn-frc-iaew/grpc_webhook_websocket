@@ -1,6 +1,6 @@
 import * as grpc from '@grpc/grpc-js';
 import * as protoLoader from '@grpc/proto-loader';
-import { logger } from '@realtime-labs/shared';
+import { emitOrderNotification, logger } from '@realtime-labs/shared';
 import { randomUUID } from 'crypto';
 import path from 'path';
 
@@ -78,21 +78,43 @@ export const registerOrderService = (server: grpc.Server) => {
       try {
         const payload = call.request.order;
         if (!payload) {
+          logger.warn('CreateOrder called without payload');
           callback({ code: grpc.status.INVALID_ARGUMENT, message: 'Order payload required' });
           return;
         }
 
         const orderId = payload.id || randomUUID();
+        const customerEmail = (payload.customerEmail ?? '').trim();
+
+        if (!customerEmail) {
+          logger.warn({ orderId }, 'CreateOrder missing customerEmail');
+          callback({ code: grpc.status.INVALID_ARGUMENT, message: 'customerEmail is required' });
+          return;
+        }
+
+        if (!Number.isFinite(payload.amount) || payload.amount <= 0) {
+          logger.warn({ orderId, amount: payload.amount }, 'CreateOrder received invalid amount');
+          callback({ code: grpc.status.INVALID_ARGUMENT, message: 'amount must be a positive number' });
+          return;
+        }
 
         const doc = await OrderModel.create({
           orderId,
-          customerEmail: payload.customerEmail,
+          customerEmail,
           amount: payload.amount,
           status: (payload.status as 'created' | 'fulfilled' | 'canceled') || 'created',
           notes: payload.notes,
         });
 
         logger.info({ orderId, customerEmail: doc.customerEmail, amount: doc.amount }, 'CreateOrder succeeded');
+
+        void emitOrderNotification({
+          orderId,
+          status: doc.status,
+        }).catch((notificationError: unknown) => {
+          logger.error({ err: notificationError, orderId }, 'Failed to emit notification from CreateOrder');
+        });
+
         callback(null, { order: toMessage(doc) });
       } catch (error) {
         logger.error({ err: error }, 'CreateOrder failed');

@@ -6,6 +6,7 @@ export const registerNotificationsChannel = (namespace: Namespace) => {
     logger.info({ socketId: socket.id }, 'Client connected to notifications namespace');
 
     socket.on('order:update', (payload: { orderId: string; status: string }) => {
+      logger.info({ socketId: socket.id, orderId: payload.orderId, status: payload.status }, 'Broadcasting order update');
       namespace.emit('order:update', {
         ...payload,
         emittedAt: new Date().toISOString(),

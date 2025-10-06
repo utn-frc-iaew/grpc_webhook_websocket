@@ -1,7 +1,6 @@
-import { logger } from '@realtime-labs/shared';
+import { emitOrderNotification, logger } from '@realtime-labs/shared';
 
 import { WebhookEventDocument } from '../../models/WebhookEvent';
-import { emitOrderNotification } from '../notifications';
 
 type OrderCanceledPayload = {
   data?: {

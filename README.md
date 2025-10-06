@@ -136,6 +136,110 @@ Sigue esta ruta para comprobar que todo quedó desplegado correctamente. Cada pa
      ```
    - **Resultado esperado**: una línea similar a `Order created via CLI: {...}` indicando que se creó una orden y fue persistida.
 
+### gRPC con Postman (alternativa manual)
+
+Si preferís experimentar con gRPC desde una herramienta gráfica, Postman (versión 10 o superior) incluye un cliente gRPC que se integra perfecto con este laboratorio:
+
+1. **Prepará el entorno**
+   - Dejá el servidor levantado (por ejemplo, `docker compose --profile grpc up -d`).
+   - Abrí Postman de escritorio.
+2. **Creá una solicitud gRPC**
+   - Seleccioná `New → gRPC Request` y configurá el endpoint en `localhost:50051`.
+   - En la barra lateral derecha, hacé clic en **Import** y elegí `grpc/server/proto/order.proto` para cargar el contrato.
+   - Dentro del árbol de servicios elegí `orders.OrderService` y luego el método `CreateOrder`.
+3. **Completá el payload**
+   - En el panel **Message** (asegurate de seleccionar el modo JSON en la esquina inferior) podés usar algo como:
+     ```json
+     {
+       "order": {
+         "customer_email": "postman@example.com",
+         "amount": 150,
+         "status": "created",
+         "notes": "pedido creado desde postman"
+       }
+     }
+     ```
+   - El campo `order.id` es opcional; si lo omitís el servidor genera un UUID automáticamente. Recordá que todos los atributos deben quedar en `snake_case`, tal como aparecen en el contrato protobuf.
+4. **Invocá y validá**
+   - Presioná **Invoke**. Deberías recibir la respuesta `order` con los datos persistidos.
+   - Revisá el panel inferior de Postman para ver los metadatos de la conexión (HTTP/2, headers, etc.).
+5. **Seguí las notificaciones** *(opcional)*
+   - Mantené abierto el cliente React o un pequeño script con Socket.IO para verificar que se emita `order:update` justo después de crear la orden.
+
+> Tip: Postman también permite probar `GetOrders` (server-streaming) y `ChatOrders` (bidireccional). En esos casos activá la pestaña **Stream** y agregá mensajes desde el panel auxiliar.
+
+#### Métodos gRPC disponibles
+
+Todos los ejemplos usan JSON con nombres de atributos en `snake_case`, exactamente como los define `grpc/server/proto/order.proto`.
+
+- **CreateOrder** *(Unary)*
+  - Request:
+    ```json
+    {
+      "order": {
+        "customer_email": "demo@example.com",
+        "amount": 120,
+        "status": "created",
+        "notes": "orden desde cli"
+      }
+    }
+    ```
+  - Response exitosa:
+    ```json
+    {
+      "order": {
+        "id": "order-1730515200000",
+        "customer_email": "demo@example.com",
+        "amount": 120,
+        "status": "created",
+        "notes": "orden desde cli",
+        "created_at": "2025-11-01T15:20:00.123Z"
+      }
+    }
+    ```
+  - En caso de validaciones fallidas (por ejemplo, correo vacío) vas a recibir `status: INVALID_ARGUMENT` y un trailer con el detalle (`"customerEmail is required"`).
+
+- **GetOrders** *(Server streaming)*
+  - Request (opcionalmente podés filtrar por estado):
+    ```json
+    {
+      "status": "created"
+    }
+    ```
+    Si omitís el campo `status`, el servidor retorna todas las órdenes.
+  - Respuesta: Postman mostrará un stream de objetos `order` individuales. Cada elemento llegará con el siguiente formato:
+    ```json
+    {
+      "id": "order-1730515200000",
+      "customer_email": "demo@example.com",
+      "amount": 120,
+      "status": "created",
+      "notes": "orden desde cli",
+      "created_at": "2025-11-01T15:20:00.123Z"
+    }
+    ```
+    Utilizá la pestaña **Stream** de Postman para verlos en tiempo real o guardalos como NDJSON si preferís analizarlos luego.
+
+- **ChatOrders** *(Bidireccional streaming)*
+  - Cada mensaje que envíes desde Postman debe respetar la estructura:
+    ```json
+    {
+      "author": "cliente",
+      "text": "¿Cuál es el estado actual?",
+      "order_id": "order-1730515200000"
+    }
+    ```
+    El servidor responderá inmediatamente con mensajes que incluyen `author: "server"` y un `sent_at` generado automáticamente:
+    ```json
+    {
+      "author": "server",
+      "text": "Ack: ¿Cuál es el estado actual?",
+      "order_id": "order-1730515200000",
+      "sent_at": "2025-11-01T15:21:05.456Z"
+    }
+    ```
+    En Postman podés mantener múltiples mensajes abiertos y cerrar el stream cuando termines desde el botón **End stream**.
+
 3. **WebSockets Server + Cliente React**
    - Abrí `http://localhost:5173` en tu navegador.
    - **Resultado esperado**: el dashboard “Realtime Labs Websocket Client” con secciones de Chat y Notificaciones. El inspector de red debe mostrar conexiones WebSocket exitosas a `ws://localhost:3003`.
